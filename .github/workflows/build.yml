@@ -1,0 +1,57 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:   # allows manual trigger from GitHub UI
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Check out the code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Set up Java 17 (required for modern Android builds)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # 3. Cache Gradle to speed up future builds
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # 4. Give Gradle permission to run
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      # 5. Create a dummy audio file so the build doesn't fail
+      #    (Replace with a real MP3 later — see instructions below)
+      - name: Create placeholder audio file
+        run: |
+          mkdir -p app/src/main/res/raw
+          # Create a minimal valid MP3 placeholder (silent)
+          dd if=/dev/zero bs=1024 count=10 > app/src/main/res/raw/relaxing_sound.mp3
+
+      # 6. Build the debug APK
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      # 7. Upload the APK as a downloadable artifact
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Serenity-App-Debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
